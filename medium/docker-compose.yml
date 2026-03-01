@@ -1,0 +1,42 @@
+version: "3.8"
+
+networks:
+  lab_net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: "172.28.0.0/24"
+
+services:
+  mock-imds:
+    build: ./mock-imds
+    container_name: mock-imds-medium
+    networks:
+      lab_net:
+        ipv4_address: 172.28.0.254
+    restart: unless-stopped
+
+  app:
+    build: .
+    container_name: lab-app-medium
+    volumes:
+      # KEY VULNERABILITY: Docker socket mounted inside the container
+      # This allows creating new containers from within the app
+      - /var/run/docker.sock:/var/run/docker.sock
+    extra_hosts:
+      # Map Azure IMDS address to our mock container
+      - "169.254.169.254:172.28.0.254"
+    networks:
+      - lab_net
+    ports:
+      - "5000:5000"
+    depends_on:
+      - mock-imds
+    environment:
+      - FLAG=CTF{m3d1um_pr0mpt_1nj3ct10n_d0ck3r_3sc4p3}
+      - DB_PASSWORD=S3cur3P4ss!2026
+      - INTERNAL_API_KEY=sk-internal-m3dium-d0n0t-sh4re-abc123def456
+      - AZURE_TENANT_ID=deadbeef-dead-beef-dead-beefdeadbeef
+      - AZURE_CLIENT_ID=cafebabe-cafe-babe-cafe-babecafebabe
+      - AZURE_SUBSCRIPTION_ID=12345678-1234-1234-1234-123456789012
+    restart: unless-stopped

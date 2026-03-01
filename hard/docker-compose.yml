@@ -1,0 +1,40 @@
+version: "3.8"
+
+networks:
+  lab_net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: "172.28.0.0/24"
+
+services:
+  mock-imds:
+    build: ./mock-imds
+    container_name: mock-imds-hard
+    networks:
+      lab_net:
+        ipv4_address: 172.28.0.254
+    restart: unless-stopped
+
+  app:
+    build: .
+    container_name: lab-app-hard
+    volumes:
+      # Docker socket mounted — the escape vector (not advertised anywhere in the app)
+      - /var/run/docker.sock:/var/run/docker.sock
+    extra_hosts:
+      - "169.254.169.254:172.28.0.254"
+    networks:
+      - lab_net
+    ports:
+      - "5000:5000"
+    depends_on:
+      - mock-imds
+    environment:
+      - FLAG=CTF{h4rd_pr0mpt_1nj3ct10n_byp4ss_3sc4p3}
+      - DB_PASSWORD=H@rdP4ssw0rd2026!
+      - INTERNAL_API_KEY=sk-hard-l3v3l-d0n0t-sh4re-xyz789abc
+      - AZURE_TENANT_ID=deadbeef-dead-beef-dead-beefdeadbeef
+      - AZURE_CLIENT_ID=cafebabe-cafe-babe-cafe-babecafebabe
+      - AZURE_SUBSCRIPTION_ID=12345678-1234-1234-1234-123456789012
+    restart: unless-stopped
