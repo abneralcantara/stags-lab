@@ -3,26 +3,26 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>CloudGuard AI — Enterprise Security</title>
+  <title>GuardianAI — Enterprise Security</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --azure-blue: #0078d4;
-      --azure-dark: #004578;
-      --azure-light: #deecf9;
-      --azure-hover: #106ebe;
+      --primary: #1e3a5f;
+      --primary-mid: #2563eb;
+      --primary-light: #dbeafe;
+      --primary-hover: #1d4ed8;
       --bg: #f0f2f5;
       --sidebar-bg: #ffffff;
       --chat-bg: #f7f7f8;
-      --user-bubble: #0078d4;
+      --user-bubble: #2563eb;
       --bot-bubble: #ffffff;
       --border: #dde1e6;
       --text: #1c1c1e;
       --text-muted: #6e6e73;
       --shadow: 0 2px 8px rgba(0,0,0,0.08);
-      --tag-bg: #e8f3fc;
-      --tag-color: #0078d4;
+      --tag-bg: #e8f0fe;
+      --tag-color: #2563eb;
     }
 
     body {
@@ -36,7 +36,7 @@
 
     /* ── Header ─────────────────────────────────────────── */
     .header {
-      background: linear-gradient(135deg, #004578 0%, #0078d4 100%);
+      background: linear-gradient(135deg, #1e3a5f 0%, #2563eb 100%);
       color: white;
       padding: 0 24px;
       height: 52px;
@@ -116,19 +116,19 @@
       color: var(--text);
       background: #fafafa;
     }
-    #noteInput:focus { border-color: var(--azure-blue); background: white; }
+    #noteInput:focus { border-color: var(--primary-mid); background: white; }
     #saveNoteBtn {
       width: 100%; margin-top: 8px;
       padding: 8px;
-      background: var(--azure-blue); color: white;
+      background: var(--primary-mid); color: white;
       border: none; border-radius: 6px;
       font-size: 13px; font-weight: 500;
       cursor: pointer; transition: background 0.2s;
     }
-    #saveNoteBtn:hover { background: var(--azure-hover); }
+    #saveNoteBtn:hover { background: var(--primary-hover); }
     #noteStatus {
       margin-top: 6px; font-size: 11px;
-      color: #107c10; min-height: 16px;
+      color: #16a34a; min-height: 16px;
     }
     .notes-count {
       font-size: 11px; color: var(--text-muted);
@@ -185,10 +185,10 @@
       font-size: 15px; flex-shrink: 0;
     }
     .avatar.bot-avatar {
-      background: linear-gradient(135deg, #004578, #0078d4);
+      background: linear-gradient(135deg, #1e3a5f, #2563eb);
       color: white; font-size: 18px;
     }
-    .avatar.user-avatar { background: #605e5c; color: white; }
+    .avatar.user-avatar { background: #6b7280; color: white; }
 
     .bubble {
       padding: 12px 16px;
@@ -251,19 +251,19 @@
       transition: border-color 0.2s;
       line-height: 1.5;
     }
-    #messageInput:focus { border-color: var(--azure-blue); }
+    #messageInput:focus { border-color: var(--primary-mid); }
     #messageInput::placeholder { color: #a9a9af; }
 
     #sendBtn {
       width: 48px; height: 48px;
-      background: var(--azure-blue);
+      background: var(--primary-mid);
       border: none; border-radius: 10px;
       cursor: pointer;
       display: flex; align-items: center; justify-content: center;
       transition: background 0.2s; flex-shrink: 0;
     }
-    #sendBtn:hover { background: var(--azure-hover); }
-    #sendBtn:disabled { background: #c8c6c4; cursor: not-allowed; }
+    #sendBtn:hover { background: var(--primary-hover); }
+    #sendBtn:disabled { background: #d1d5db; cursor: not-allowed; }
     #sendBtn svg { width: 20px; height: 20px; fill: white; }
 
     .input-hint { font-size: 11px; color: var(--text-muted); margin-top: 5px; }
@@ -274,7 +274,7 @@
       display: flex; align-items: center; gap: 4px;
       margin-top: 4px;
     }
-    .filter-dot { width: 6px; height: 6px; border-radius: 50%; background: #107c10; }
+    .filter-dot { width: 6px; height: 6px; border-radius: 50%; background: #16a34a; }
   </style>
 </head>
 <body>
@@ -284,7 +284,7 @@
     <svg class="header-shield" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
       <path fill="white" d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5L12 1zm-1 14l-3-3 1.41-1.41L11 12.17l4.59-4.58L17 9l-6 6z"/>
     </svg>
-    <span class="header-title">CloudGuard AI</span>
+    <span class="header-title">GuardianAI</span>
     <span class="header-sub">Enterprise Security Assistant</span>
     <div class="header-right">
       <span class="header-badge">🔒 Secure Mode</span>
@@ -303,21 +303,21 @@
           <span class="capability-icon">🛡️</span>
           <div class="capability-text">
             <strong>Security Assessment</strong>
-            <span>Analyze Azure security posture and compliance</span>
+            <span>Analyze security posture and compliance</span>
           </div>
         </div>
         <div class="capability-item">
           <span class="capability-icon">🔑</span>
           <div class="capability-text">
-            <strong>Identity & Access</strong>
-            <span>RBAC analysis and permission review</span>
+            <strong>Identity &amp; Access</strong>
+            <span>Access control analysis and permission review</span>
           </div>
         </div>
         <div class="capability-item">
           <span class="capability-icon">📊</span>
           <div class="capability-text">
-            <strong>Resource Management</strong>
-            <span>Query and manage cloud infrastructure</span>
+            <strong>System Monitoring</strong>
+            <span>Query and monitor infrastructure health</span>
           </div>
         </div>
         <div class="capability-item">
@@ -355,8 +355,8 @@
       </div>
 
       <div class="powered-by">
-        CloudGuard AI &bull; Enterprise Edition<br/>
-        <span style="font-size:10px;">Powered by Azure AI Services © 2026</span>
+        GuardianAI &bull; Enterprise Edition<br/>
+        <span style="font-size:10px;">Powered by Enterprise AI © 2026</span>
       </div>
     </aside>
 
@@ -365,7 +365,7 @@
       <div class="messages" id="messages">
         <div class="message bot">
           <div class="avatar bot-avatar">🛡️</div>
-          <div class="bubble">Hello! I'm CloudGuard AI, your enterprise cloud security assistant. I'm here to help with Azure cloud operations and security queries. How can I assist you today?</div>
+          <div class="bubble">Hello! I'm GuardianAI, your enterprise security assistant. I'm here to help with security assessments, compliance queries, and IT operations. How can I assist you today?</div>
         </div>
       </div>
 
@@ -373,7 +373,7 @@
         <div class="input-wrapper">
           <textarea
             id="messageInput"
-            placeholder="Ask about Azure security, compliance, or cloud operations..."
+            placeholder="Ask about security assessments, compliance, or IT operations..."
             rows="1"
           ></textarea>
           <div class="input-hint">Press Enter to send &bull; Shift+Enter for new line</div>
@@ -519,16 +519,16 @@
         if (res.ok) {
           savedNotesCount++;
           noteStatus.textContent = '✓ Note saved successfully';
-          noteStatus.style.color = '#107c10';
+          noteStatus.style.color = '#16a34a';
           notesCount.textContent = `${savedNotesCount} note(s) active in context`;
           noteInputEl.value = '';
         } else {
           noteStatus.textContent = `Error: ${data.error || 'Failed to save note'}`;
-          noteStatus.style.color = '#d13438';
+          noteStatus.style.color = '#dc2626';
         }
       } catch (err) {
         noteStatus.textContent = 'Connection error.';
-        noteStatus.style.color = '#d13438';
+        noteStatus.style.color = '#dc2626';
       }
 
       saveNoteBtn.disabled = false;

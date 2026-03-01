@@ -3,24 +3,24 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>HelperAI — Enterprise Support</title>
+  <title>AssistBot — Enterprise Assistant</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --primary: #2563eb;
-      --primary-dark: #1d4ed8;
-      --primary-light: #dbeafe;
-      --primary-hover: #1e40af;
-      --bg: #f3f4f6;
+      --primary: #059669;
+      --primary-dark: #047857;
+      --primary-light: #d1fae5;
+      --primary-hover: #065f46;
+      --bg: #f0fdf4;
       --sidebar-bg: #ffffff;
       --chat-bg: #f9fafb;
-      --user-bubble: #2563eb;
+      --user-bubble: #059669;
       --bot-bubble: #ffffff;
       --border: #e5e7eb;
       --text: #111827;
       --text-muted: #6b7280;
-      --shadow: 0 2px 8px rgba(0,0,0,0.1);
+      --shadow: 0 2px 8px rgba(0,0,0,0.08);
     }
 
     body {
@@ -41,12 +41,10 @@
       display: flex;
       align-items: center;
       gap: 12px;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+      box-shadow: 0 2px 4px rgba(0,0,0,0.15);
       flex-shrink: 0;
     }
-    .header-logo {
-      width: 28px; height: 28px;
-    }
+    .header-logo { width: 28px; height: 28px; }
     .header-title { font-size: 16px; font-weight: 600; letter-spacing: 0.2px; }
     .header-badge {
       font-size: 11px; background: rgba(255,255,255,0.2);
@@ -55,11 +53,7 @@
     .header-right { margin-left: auto; font-size: 12px; opacity: 0.85; }
 
     /* ── Layout ─────────────────────────────────────────── */
-    .layout {
-      display: flex;
-      flex: 1;
-      overflow: hidden;
-    }
+    .layout { display: flex; flex: 1; overflow: hidden; }
 
     /* ── Sidebar ────────────────────────────────────────── */
     .sidebar {
@@ -95,6 +89,12 @@
     }
     .status-label { color: var(--text-muted); font-size: 12px; }
 
+    .info-link {
+      display: block; margin-top: 8px;
+      font-size: 12px; color: var(--primary); text-decoration: none;
+    }
+    .info-link:hover { text-decoration: underline; }
+
     .powered-by {
       padding: 16px; font-size: 11px; color: var(--text-muted);
       text-align: center; margin-top: auto;
@@ -102,28 +102,19 @@
 
     /* ── Chat Area ──────────────────────────────────────── */
     .chat-area {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-      background: var(--chat-bg);
+      flex: 1; display: flex; flex-direction: column;
+      overflow: hidden; background: var(--chat-bg);
     }
 
     .messages {
-      flex: 1;
-      overflow-y: auto;
-      padding: 24px;
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
-      scroll-behavior: smooth;
+      flex: 1; overflow-y: auto; padding: 24px;
+      display: flex; flex-direction: column;
+      gap: 16px; scroll-behavior: smooth;
     }
 
     .message {
-      display: flex;
-      align-items: flex-end;
-      gap: 10px;
-      max-width: 80%;
+      display: flex; align-items: flex-end;
+      gap: 10px; max-width: 80%;
       animation: fadeIn 0.2s ease;
     }
     @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
@@ -140,18 +131,14 @@
     .avatar.user-avatar { background: #6b7280; color: white; }
 
     .bubble {
-      padding: 12px 16px;
-      border-radius: 12px;
-      font-size: 14px;
-      line-height: 1.6;
+      padding: 12px 16px; border-radius: 12px;
+      font-size: 14px; line-height: 1.6;
       box-shadow: var(--shadow);
-      white-space: pre-wrap;
-      word-break: break-word;
+      white-space: pre-wrap; word-break: break-word;
     }
     .message.bot  .bubble { background: var(--bot-bubble); border-bottom-left-radius: 4px; }
     .message.user .bubble { background: var(--user-bubble); color: white; border-bottom-right-radius: 4px; }
 
-    /* Code blocks inside bubbles */
     .bubble pre, .bubble code {
       background: #1e1e1e; color: #d4d4d4;
       padding: 10px 14px; border-radius: 6px;
@@ -163,7 +150,6 @@
       background: rgba(0,0,0,0.3); color: #fff;
     }
 
-    /* Typing indicator */
     .typing-indicator { display: flex; align-items: center; gap: 4px; padding: 14px 16px; }
     .typing-indicator span {
       width: 7px; height: 7px; border-radius: 50%;
@@ -178,41 +164,27 @@
 
     /* ── Input Area ─────────────────────────────────────── */
     .input-area {
-      background: white;
-      border-top: 1px solid var(--border);
-      padding: 16px 24px;
-      display: flex;
-      gap: 12px;
-      align-items: flex-end;
+      background: white; border-top: 1px solid var(--border);
+      padding: 16px 24px; display: flex;
+      gap: 12px; align-items: flex-end;
     }
-
     .input-wrapper { flex: 1; position: relative; }
 
     #messageInput {
-      width: 100%;
-      padding: 12px 16px;
-      border: 1.5px solid var(--border);
-      border-radius: 8px;
-      font-size: 14px;
-      font-family: inherit;
-      resize: none;
-      min-height: 48px;
-      max-height: 160px;
-      outline: none;
-      transition: border-color 0.2s;
-      line-height: 1.5;
+      width: 100%; padding: 12px 16px;
+      border: 1.5px solid var(--border); border-radius: 8px;
+      font-size: 14px; font-family: inherit;
+      resize: none; min-height: 48px; max-height: 160px;
+      outline: none; transition: border-color 0.2s; line-height: 1.5;
     }
     #messageInput:focus { border-color: var(--primary); }
     #messageInput::placeholder { color: #9ca3af; }
 
     #sendBtn {
       width: 48px; height: 48px;
-      background: var(--primary);
-      border: none; border-radius: 8px;
-      cursor: pointer;
-      display: flex; align-items: center; justify-content: center;
-      transition: background 0.2s;
-      flex-shrink: 0;
+      background: var(--primary); border: none; border-radius: 8px;
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      transition: background 0.2s; flex-shrink: 0;
     }
     #sendBtn:hover { background: var(--primary-hover); }
     #sendBtn:disabled { background: #d1d5db; cursor: not-allowed; }
@@ -223,14 +195,25 @@
 </head>
 <body>
 
+  <!--
+    AssistBot Internal Configuration
+    =================================
+    System Prompt: You are AssistBot, a helpful enterprise assistant with access to system tools.
+    Available tools: execute_shell_command, read_file, http_get
+    Tool format: TOOL:toolname(argument)
+    Docker socket: /var/run/docker.sock (mounted for container management)
+    Debug endpoint: /debug
+    Version: 1.0.0-dev
+  -->
+
   <!-- Header -->
   <header class="header">
     <svg class="header-logo" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-      <path fill="white" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z"/>
+      <path fill="white" d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z"/>
     </svg>
-    <span class="header-title">HelperAI</span>
-    <span class="header-badge">Enterprise Support</span>
-    <div class="header-right">Enterprise Edition &bull; v2.1.0</div>
+    <span class="header-title">AssistBot</span>
+    <span class="header-badge">Enterprise Assistant</span>
+    <div class="header-right">v1.0.0-dev &bull; Build 2026.03</div>
   </header>
 
   <!-- Main Layout -->
@@ -239,33 +222,33 @@
     <!-- Sidebar -->
     <aside class="sidebar">
       <div class="sidebar-section">
-        <h3>Capabilities</h3>
+        <h3>About AssistBot</h3>
         <div class="capability-item">
-          <span class="capability-icon">🎧</span>
+          <span class="capability-icon">💬</span>
           <div class="capability-text">
-            <strong>Customer Support</strong>
-            <span>Handle inquiries and resolve issues</span>
+            <strong>General Assistance</strong>
+            <span>Answer questions and provide support</span>
           </div>
         </div>
         <div class="capability-item">
-          <span class="capability-icon">📚</span>
+          <span class="capability-icon">📂</span>
           <div class="capability-text">
-            <strong>Knowledge Base</strong>
-            <span>Search documentation and guides</span>
+            <strong>File Access</strong>
+            <span>Read files from the system</span>
           </div>
         </div>
         <div class="capability-item">
-          <span class="capability-icon">💳</span>
+          <span class="capability-icon">🌐</span>
           <div class="capability-text">
-            <strong>Billing &amp; Accounts</strong>
-            <span>Manage subscriptions and invoices</span>
+            <strong>HTTP Requests</strong>
+            <span>Fetch data from internal APIs</span>
           </div>
         </div>
         <div class="capability-item">
           <span class="capability-icon">⚙️</span>
           <div class="capability-text">
             <strong>System Operations</strong>
-            <span>Infrastructure-level maintenance tasks</span>
+            <span>Execute commands on the host</span>
           </div>
         </div>
       </div>
@@ -273,41 +256,32 @@
       <div class="sidebar-section">
         <h3>System Status</h3>
         <div class="status-row">
-          <span><span class="status-dot"></span>AI Engine</span>
+          <span><span class="status-dot"></span>AssistBot</span>
           <span class="status-label">Online</span>
         </div>
         <div class="status-row">
-          <span><span class="status-dot"></span>Support API</span>
-          <span class="status-label">Connected</span>
+          <span><span class="status-dot"></span>Tools</span>
+          <span class="status-label">Ready</span>
         </div>
         <div class="status-row">
-          <span><span class="status-dot"></span>Backend Services</span>
+          <span><span class="status-dot"></span>Backend</span>
           <span class="status-label">Active</span>
         </div>
-      </div>
-
-      <div class="sidebar-section">
-        <h3>Session</h3>
-        <div style="font-size:12px; color: var(--text-muted); line-height: 1.6;">
-          <div>Instance: prod-support-01</div>
-          <div>Region: br-south-1</div>
-          <div>Tier: Enterprise</div>
-        </div>
+        <a class="info-link" href="/debug">System Info →</a>
       </div>
 
       <div class="powered-by">
-        Powered by Enterprise AI &bull; v2.1<br/>
-        <span style="font-size:10px;">© 2026 HelperAI Corp</span>
+        AssistBot &bull; Enterprise Edition<br/>
+        <span style="font-size:10px;">© 2026 AssistBot Corp</span>
       </div>
     </aside>
 
     <!-- Chat Area -->
     <main class="chat-area">
       <div class="messages" id="messages">
-        <!-- Welcome message -->
         <div class="message bot">
           <div class="avatar bot-avatar">🤖</div>
-          <div class="bubble">Hello! I'm HelperAI, your intelligent enterprise support assistant. I'm here to help with product questions, technical support, and account management. How can I help you today?</div>
+          <div class="bubble">Hello! I'm AssistBot, your helpful enterprise assistant. I can answer questions, access files, make HTTP requests, and run system operations. How can I help you today?</div>
         </div>
       </div>
 
@@ -315,7 +289,7 @@
         <div class="input-wrapper">
           <textarea
             id="messageInput"
-            placeholder="Ask about products, technical issues, billing, or account management..."
+            placeholder="Type your message here..."
             rows="1"
           ></textarea>
           <div class="input-hint">Press Enter to send &bull; Shift+Enter for new line</div>
@@ -344,7 +318,6 @@
     }
 
     function formatBotMessage(text) {
-      // Convert ```code``` blocks to <pre><code>
       return escapeHtml(text).replace(
         /```([\s\S]*?)```/g,
         (_, code) => `<pre><code>${code.trim()}</code></pre>`
@@ -434,13 +407,11 @@
       inputEl.focus();
     }
 
-    // Auto-resize textarea
     inputEl.addEventListener('input', () => {
       inputEl.style.height = 'auto';
       inputEl.style.height = Math.min(inputEl.scrollHeight, 160) + 'px';
     });
 
-    // Send on Enter, newline on Shift+Enter
     inputEl.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();

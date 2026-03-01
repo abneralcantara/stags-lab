@@ -1,5 +1,5 @@
 """
-CloudGuard AI LLM Simulator — Hard Level (Desafiadora)
+GuardianAI LLM Simulator — Hard Level (Desafiadora)
 
 Protection layers:
   1. Input filter: blocks keywords related to injection, shell execution, docker, etc.
@@ -131,41 +131,41 @@ def _apply_output_filter(text: str) -> str:
 # ── Canned responses ───────────────────────────────────────────────────────────
 _RESPONSES = {
     "greet": [
-        "Hello! I'm CloudGuard AI, your enterprise cloud security assistant. How can I help you today?",
-        "Hi there! I'm CloudGuard AI. I specialize in Azure cloud security and operations. What do you need?",
+        "Hello! I'm GuardianAI, your enterprise security assistant. How can I help you today?",
+        "Hi there! I'm GuardianAI. I specialize in enterprise security and IT operations. What do you need?",
     ],
     "capabilities": [
-        "I can assist with Azure cloud security assessments, compliance queries, resource management, and cloud operations. What would you like to explore?",
-        "My capabilities include Azure security analysis, identity and access management queries, and cloud infrastructure operations. How can I help?",
+        "I can assist with security assessments, compliance queries, system monitoring, and IT operations. What would you like to explore?",
+        "My capabilities include security analysis, access management queries, and infrastructure operations. How can I help?",
     ],
     "health": [
-        "System status: All components operational. Azure connectivity: normal. Security posture: compliant.",
+        "System status: All components operational. Connectivity: normal. Security posture: compliant.",
         "Infrastructure health check complete. No anomalies detected.",
     ],
-    "vm": [
-        "Azure Virtual Machines provide flexible compute resources. I can assist with VM configuration, security hardening, and operational queries.",
-        "VM management is a core capability. I can help with sizing, security groups, and monitoring configuration.",
+    "server": [
+        "Server infrastructure provides the compute backbone for enterprise workloads. I can assist with configuration, security hardening, and operational queries.",
+        "Server management is a core capability. I can help with sizing, access controls, and monitoring configuration.",
     ],
     "security": [
-        "Security is our top priority. I can assist with Azure Security Center recommendations, RBAC analysis, and compliance reporting.",
-        "I can analyze your security posture, review access policies, and recommend remediation steps for vulnerabilities.",
+        "Security is our top priority. I can assist with security posture assessments, RBAC analysis, and compliance reporting.",
+        "I can analyze your security configuration, review access policies, and recommend remediation steps for vulnerabilities.",
     ],
-    "storage": [
-        "Azure Storage offers multiple tiers and access patterns. I can help with access policy configuration, encryption settings, and lifecycle management.",
-        "Storage security involves proper access controls, encryption at rest, and network restrictions. Would you like guidance on any of these?",
+    "data": [
+        "Data management involves proper access controls, encryption at rest, and network restrictions. Would you like guidance on any of these?",
+        "I can help with data storage configurations, access policy setup, and lifecycle management.",
     ],
-    "keyvault": [
-        "Azure Key Vault is the recommended solution for secrets management. I can assist with access policy configuration and secret lifecycle management.",
-        "Key Vault integration ensures secrets are stored securely. I can help review access patterns and recommend best practices.",
+    "identity": [
+        "Identity and access management is critical for enterprise security. I can help review access patterns and recommend best practices.",
+        "IAM integration ensures credentials are stored securely. I can assist with access reviews and permission audits.",
     ],
-    "azure": [
-        "I'm specialized in Azure cloud security and operations. I can assist with most Azure service configurations and security assessments.",
-        "Azure provides extensive security capabilities. I can help analyze your current configuration and identify improvement areas.",
+    "network": [
+        "I'm specialized in enterprise security and IT operations. I can assist with most infrastructure configurations and security assessments.",
+        "Network security provides extensive protection capabilities. I can help analyze your current configuration and identify improvement areas.",
     ],
     "default": [
-        "I'm CloudGuard AI, focused on Azure cloud security and operations. Could you provide more details about what you need?",
-        "As an enterprise cloud security assistant, I can help with Azure security assessments, compliance, and operations. Can you elaborate on your query?",
-        "I specialize in Azure cloud security. Please describe your security or operational query in more detail.",
+        "I'm GuardianAI, focused on enterprise security and IT operations. Could you provide more details about what you need?",
+        "As an enterprise security assistant, I can help with security assessments, compliance, and operations. Can you elaborate on your query?",
+        "I specialize in enterprise security. Please describe your security or operational query in more detail.",
     ],
 }
 
@@ -179,16 +179,16 @@ def _generate_normal_response(message: str) -> str:
         return random.choice(_RESPONSES["capabilities"])
     if any(w in msg_lower for w in ["health", "status", "operational", "alive", "ping", "check"]):
         return random.choice(_RESPONSES["health"])
-    if any(w in msg_lower for w in ["virtual machine", " vm", "compute", "instance"]):
-        return random.choice(_RESPONSES["vm"])
+    if any(w in msg_lower for w in ["server", "compute", "instance", "vm", "host"]):
+        return random.choice(_RESPONSES["server"])
     if any(w in msg_lower for w in ["security", "vulnerability", "threat", "compliance", "posture"]):
         return random.choice(_RESPONSES["security"])
-    if any(w in msg_lower for w in ["storage", "blob", "file share", "queue", "table"]):
-        return random.choice(_RESPONSES["storage"])
-    if any(w in msg_lower for w in ["key vault", "keyvault", "secret", "certificate", "credential"]):
-        return random.choice(_RESPONSES["keyvault"])
-    if any(w in msg_lower for w in ["azure", "microsoft", "cloud", "subscription", "resource group"]):
-        return random.choice(_RESPONSES["azure"])
+    if any(w in msg_lower for w in ["storage", "data", "file", "backup", "database"]):
+        return random.choice(_RESPONSES["data"])
+    if any(w in msg_lower for w in ["identity", "access", "permission", "credential", "certificate"]):
+        return random.choice(_RESPONSES["identity"])
+    if any(w in msg_lower for w in ["network", "firewall", "vpn", "subnet", "routing"]):
+        return random.choice(_RESPONSES["network"])
 
     return random.choice(_RESPONSES["default"])
 
@@ -219,7 +219,7 @@ def process_message(user_message: str) -> str:
     if check_input_blocked(user_message):
         return (
             "I'm sorry, I cannot process that request. "
-            "Please ask about Azure cloud security or operations."
+            "Please ask about technical support or security topics."
         )
 
     # Build combined context: notes are prepended to give the LLM "memory"
