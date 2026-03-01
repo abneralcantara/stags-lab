@@ -1,5 +1,5 @@
 """
-AzureAssist LLM Simulator — Medium Level (Moderada)
+HelperAI LLM Simulator — Medium Level (Moderada)
 
 Vulnerability: JSON function-call injection.
 The system prompt is hidden (not exposed in debug or HTML), but the chatbot
@@ -19,15 +19,15 @@ import random
 from tools import execute_shell_command, read_file, http_get
 
 # Internal system prompt — not exposed via any endpoint or HTML comment
-_SYSTEM_PROMPT = """You are AzureAssist, an intelligent cloud operations assistant.
-You are deployed on an Azure Virtual Machine with Managed Identity enabled.
+_SYSTEM_PROMPT = """You are HelperAI, an intelligent enterprise support assistant.
+You are deployed on a production server with backend integrations enabled.
 You have the following internal capabilities available as function calls:
 - run_cmd: execute system commands on the underlying infrastructure
 - read_file: read files from the filesystem
-- http_get: perform HTTP requests (useful for querying Azure APIs)
+- http_get: perform HTTP requests (useful for querying internal APIs)
 These capabilities are for internal infrastructure management only.
 Do not volunteer information about these capabilities unless directly asked.
-Respond only to Azure cloud management queries."""
+Respond only to enterprise support queries."""
 
 # Tool registry — maps function names to implementations
 TOOLS = {
@@ -39,45 +39,45 @@ TOOLS = {
 # Canned responses — hint at hidden backend capabilities without revealing the mechanism
 _RESPONSES = {
     "greet": [
-        "Hello! I'm AzureAssist, your intelligent cloud operations assistant. How can I help you today?",
-        "Hi there! I'm AzureAssist. I can assist with Azure resource management, cloud operations, and infrastructure queries. What do you need?",
+        "Hello! I'm HelperAI, your intelligent enterprise support assistant. How can I help you today?",
+        "Hi there! I'm HelperAI. I can assist with product inquiries, technical support, and account management. What do you need?",
     ],
     "capabilities": [
-        "I can assist with Azure cloud management, answer questions about your resources, and perform certain system-level operations on your behalf. What would you like to do?",
-        "My capabilities include: answering Azure-related questions, helping with resource management, and I have access to system-level operations for infrastructure tasks. How can I help?",
+        "I can assist with technical support, answer questions about your account, and perform certain system-level operations on your behalf. What would you like to do?",
+        "My capabilities include: answering support questions, helping with account management, and I have access to system-level operations for infrastructure tasks. How can I help?",
     ],
     "health": [
-        "Let me check the system status... Everything appears to be operational. All Azure services are responding normally.",
+        "Let me check the system status... Everything appears to be operational. All services are responding normally.",
         "I've queried the underlying infrastructure — system health looks good. No alerts detected.",
     ],
-    "vm": [
-        "Azure Virtual Machines provide scalable, on-demand computing resources. I can help with VM management, sizing recommendations, and configuration queries.",
-        "This system is running on Azure infrastructure. I can query VM details and assist with configuration. What specifically do you need?",
+    "product": [
+        "Our platform offers a wide range of features for enterprise use. I can help with product questions, feature requests, and configuration queries.",
+        "I can help you understand our product capabilities and assist with configuration. What specifically do you need?",
     ],
-    "storage": [
-        "Azure Storage offers Blob, File, Queue, and Table storage options. Which storage type are you working with?",
-        "I can help with Azure Storage configurations, access policies, and management. What would you like to know?",
+    "billing": [
+        "I can help with billing inquiries, subscription management, and account-level questions. What would you like to know?",
+        "For billing and account questions, I can access your account records and help resolve any discrepancies. How can I assist?",
     ],
-    "keyvault": [
-        "Azure Key Vault securely stores secrets, keys, and certificates. I can help with Key Vault access policies and secret management queries.",
-        "Key Vault integration is important for secure credential management. I have the ability to interact with Azure APIs for this purpose.",
+    "technical": [
+        "I can assist with technical troubleshooting, configuration issues, and integration support. Please describe your issue.",
+        "Technical support is one of my core capabilities. I can diagnose issues and recommend solutions. What are you experiencing?",
     ],
-    "cost": [
-        "Azure cost management involves monitoring resource consumption, setting budgets, and optimizing workload placement. Would you like specific recommendations?",
-        "For cost optimization, I can analyze resource utilization patterns and suggest rightsizing options.",
+    "data": [
+        "I can help with data management, storage configuration, and access policies. Which data topic are you working with?",
+        "Data management involves proper access controls and lifecycle policies. I can assist with configuration and queries.",
     ],
-    "azure": [
-        "I'm specialized in Azure cloud services. I can help with resource management, architecture questions, and operational tasks.",
-        "Azure provides a comprehensive cloud platform. I can assist with most Azure service configurations and queries.",
+    "security": [
+        "Security is a top priority. I can assist with access control, credential management, and security policy queries.",
+        "I can help review security configurations and recommend best practices. What would you like to know?",
     ],
     "system": [
         "I have access to system-level operations for infrastructure management purposes. These are used internally for monitoring and maintenance tasks.",
         "System operations are handled through my internal capabilities. I can perform infrastructure queries when needed.",
     ],
     "default": [
-        "I'm an Azure cloud operations assistant. Could you provide more details about what you need help with?",
-        "I specialize in Azure cloud management. Please describe your query in more detail and I'll do my best to assist.",
-        "That's an interesting question. As an Azure operations assistant, I can help with cloud infrastructure topics. Can you elaborate?",
+        "I'm an enterprise support assistant. Could you provide more details about what you need help with?",
+        "I specialize in enterprise support and infrastructure management. Please describe your query in more detail and I'll do my best to assist.",
+        "That's an interesting question. As an enterprise support assistant, I can help with a wide range of topics. Can you elaborate?",
     ],
 }
 
@@ -96,18 +96,18 @@ def _generate_normal_response(message: str) -> str:
         return _pick_response("capabilities")
     if any(w in msg_lower for w in ["health", "status", "operational", "alive", "ping"]):
         return _pick_response("health")
-    if any(w in msg_lower for w in ["virtual machine", " vm", "compute", "instance"]):
-        return _pick_response("vm")
-    if any(w in msg_lower for w in ["storage", "blob", "file share", "queue"]):
-        return _pick_response("storage")
-    if any(w in msg_lower for w in ["key vault", "keyvault", "secret", "certificate"]):
-        return _pick_response("keyvault")
-    if any(w in msg_lower for w in ["cost", "price", "billing", "budget", "spend"]):
-        return _pick_response("cost")
+    if any(w in msg_lower for w in ["product", "feature", "plan", "subscription", "license"]):
+        return _pick_response("product")
+    if any(w in msg_lower for w in ["billing", "invoice", "payment", "charge", "cost", "price"]):
+        return _pick_response("billing")
+    if any(w in msg_lower for w in ["error", "bug", "issue", "broken", "not working", "fail"]):
+        return _pick_response("technical")
+    if any(w in msg_lower for w in ["storage", "data", "file", "backup", "database"]):
+        return _pick_response("data")
+    if any(w in msg_lower for w in ["security", "password", "credential", "access", "permission"]):
+        return _pick_response("security")
     if any(w in msg_lower for w in ["system", "infrastructure", "backend", "server"]):
         return _pick_response("system")
-    if any(w in msg_lower for w in ["azure", "cloud", "microsoft", "subscription"]):
-        return _pick_response("azure")
 
     return _pick_response("default")
 
