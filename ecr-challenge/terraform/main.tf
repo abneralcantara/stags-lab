@@ -123,6 +123,7 @@ resource "null_resource" "docker_build_push" {
 
       # ── 3. Build ────────────────────────────────────────────────────────────
       docker build \
+        --network=host \
         --build-arg REPO_NAME="$REPO_NAME" \
         -t "$REPO_URL:$IMAGE_TAG" \
         "$TMP_CTX"

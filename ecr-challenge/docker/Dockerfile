@@ -7,7 +7,7 @@ WORKDIR /build
 COPY react-app/package.json react-app/package-lock.json* ./
 
 # Install dependencies
-RUN npm install --silent
+RUN npm install
 
 # Copy the full React source tree.
 # For react-app-07 the build context includes react-app/src/scripts/aws_config.py
