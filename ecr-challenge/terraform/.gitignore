@@ -1,0 +1,9 @@
+# Terraform state — may contain sensitive values
+.terraform/
+*.tfstate
+*.tfstate.backup
+.terraform.lock.hcl
+
+# Local variable overrides
+*.auto.tfvars
+terraform.tfvars.local

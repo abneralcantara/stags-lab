@@ -1,0 +1,9 @@
+react-app/node_modules
+react-app/build
+.git
+*.md
+*.log
+npm-debug.log*
+.DS_Store
+.env
+.env.*
