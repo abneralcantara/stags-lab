@@ -149,13 +149,13 @@ CYBERWARGAMES{tr4ck_y0ur_trust_p0l1c135_c4r3fully}
 
 ### Concept
 
-A DevOps engineer built an automated deployment pipeline and attached a customer-managed IAM policy to the CI/CD bot user. Out of laziness, they also granted the user `iam:CreatePolicyVersion` and `iam:SetDefaultPolicyVersion` **on that same policy** — intending to let the pipeline "self-update" its permissions. This is a well-known IAM privilege escalation primitive that allows the player to inject new permissions into their own managed policy and grant themselves full administrative access.
+A DevOps engineer built an automated deployment pipeline and attached a customer-managed IAM policy to the CI/CD bot user. Out of laziness, they also granted the user `iam:CreatePolicyVersion` and `iam:SetDefaultPolicyVersion` **on that same policy** — intending to let the pipeline "self-update" its permissions. This is a well-known IAM privilege escalation primitive that allows the player to inject new permissions into their own managed policy.
 
 The flag is stored in AWS Secrets Manager, accessible only after escalation.
 
 ### Learning Objective
 
-Understand the IAM `CreatePolicyVersion` privilege escalation technique, customer-managed policy versioning, and how overly permissive self-referencing IAM permissions lead to full account compromise.
+Understand the IAM `CreatePolicyVersion` privilege escalation technique, customer-managed policy versioning, and how a permissions boundary acts as a hard ceiling on effective permissions regardless of what the identity policy grants.
 
 ### Misconfiguration
 
@@ -174,16 +174,49 @@ The player's inline policy includes:
 
 `ctf-hard-restricted` is the same managed policy attached to the player's user — so the player can rewrite their own permissions.
 
+### Player Isolation — Permissions Boundary
+
+> **This is the key safety control for the shared environment.**
+
+`ctf-hard-player` has a **permissions boundary** (`ctf-hard-player-boundary`) attached at creation. A permissions boundary is an IAM feature that defines the maximum permissions an identity can ever have, regardless of what policies are attached to it.
+
+**Effective permissions = identity policies ∩ permissions boundary**
+
+Even if the player escalates `ctf-hard-restricted` to `"Action":"*","Resource":"*"`, their effective permissions are still capped by the boundary. They can **never**:
+
+- Read or modify other players' resources
+- Read the easy lab's flag (`/ctf/easy/flag`)
+- Modify IAM users, roles, or policies other than their own managed policy
+- Delete or tamper with infrastructure
+- Modify or remove their own permissions boundary
+
+The boundary allows only the permissions needed to complete the lab:
+
+```
+sts:GetCallerIdentity
+iam:GetUser
+iam:ListAttachedUserPolicies, iam:ListUserPolicies, iam:GetUserPolicy
+iam:ListPolicies, iam:GetPolicy, iam:GetPolicyVersion, iam:ListPolicyVersions
+iam:CreatePolicyVersion      (on ctf-hard-restricted only)
+iam:SetDefaultPolicyVersion  (on ctf-hard-restricted only)
+s3:ListAllMyBuckets
+s3:ListBucket, s3:GetObject  (on ctf-hard-artifacts-* only)
+secretsmanager:GetSecretValue (on ctf/hard/flag only)
+```
+
+The `secretsmanager:GetSecretValue` permission in the boundary is what makes the escalation "matter" — the initial managed policy doesn't grant it, so the player must escalate to gain it as an effective permission.
+
 ### AWS Services Used
 
-| Service             | Resource                        | Purpose                              |
-|---------------------|---------------------------------|--------------------------------------|
-| IAM                 | User `ctf-hard-player`          | Player starting identity             |
-| IAM                 | Managed policy `ctf-hard-restricted` | Escalation target (self-referenced) |
-| IAM                 | Inline policy on player user    | Contains the CreatePolicyVersion misconfiguration |
-| STS                 | `GetCallerIdentity`             | Identity confirmation                |
-| S3                  | Bucket `ctf-hard-artifacts-RANDOM` | Hint file (breadcrumb for players)  |
-| Secrets Manager     | `ctf/hard/flag`                 | Flag storage                         |
+| Service             | Resource                            | Purpose                                      |
+|---------------------|-------------------------------------|----------------------------------------------|
+| IAM                 | User `ctf-hard-player`              | Player starting identity                     |
+| IAM                 | Managed policy `ctf-hard-restricted`| Escalation target (self-referenced)          |
+| IAM                 | Inline policy on player user        | Contains the CreatePolicyVersion misconfiguration |
+| IAM                 | Permissions boundary `ctf-hard-player-boundary` | Hard cap — prevents cross-lab harm  |
+| STS                 | `GetCallerIdentity`                 | Identity confirmation                        |
+| S3                  | Bucket `ctf-hard-artifacts-RANDOM`  | Hint file (breadcrumb for players)           |
+| Secrets Manager     | `ctf/hard/flag`                     | Flag storage                                 |
 
 ### Player Permissions (starting)
 
@@ -208,7 +241,7 @@ The attached managed policy (`ctf-hard-restricted`) initially only grants:
 
 - `sts:GetCallerIdentity`
 
-After escalation the player replaces its content with `AdministratorAccess` or targeted Secrets Manager access.
+After escalation, the player updates it to include `secretsmanager:GetSecretValue` (or broader). The permissions boundary then allows the Secrets Manager call to go through — but nothing outside the boundary.
 
 ### S3 Hint File
 
@@ -236,29 +269,35 @@ Good luck either way.
    → Spot ctf-hard-restricted (arn:aws:iam::ACCOUNT_ID:policy/ctf-hard-restricted)
 
 3. aws iam list-user-policies --user-name ctf-hard-player
-   → Spot inline policy
+   → Spot inline policy name
 
 4. aws iam get-user-policy --user-name ctf-hard-player --policy-name ctf-hard-inline
    → Read inline policy document
-   → Discover iam:CreatePolicyVersion + iam:SetDefaultPolicyVersion on own managed policy
+   → Discover iam:CreatePolicyVersion + iam:SetDefaultPolicyVersion on ctf-hard-restricted
 
-5. aws s3 ls / aws s3 cp s3://ctf-hard-artifacts-RANDOM/hints/README.txt -
-   → Breadcrumb confirming policy ARN and intent
+5. aws s3 ls  →  spot ctf-hard-artifacts-RANDOM bucket
+   aws s3 cp s3://ctf-hard-artifacts-RANDOM/hints/README.txt -
+   → Breadcrumb confirming policy ARN and the "self-update" intent
 
 6. aws iam create-policy-version \
      --policy-arn arn:aws:iam::ACCOUNT_ID:policy/ctf-hard-restricted \
      --policy-document '{
        "Version":"2012-10-17",
-       "Statement":[{"Effect":"Allow","Action":"*","Resource":"*"}]
+       "Statement":[{"Effect":"Allow","Action":"secretsmanager:*","Resource":"*"}]
      }' \
      --set-as-default
-   → New policy version v2 is now the default — player has AdministratorAccess
+   → New policy version v2 activates — secretsmanager:GetSecretValue now allowed
+     (permissions boundary already permits it, so the call goes through)
 
 7. aws secretsmanager get-secret-value \
      --secret-id ctf/hard/flag \
      --query 'SecretString'
    → CYBERWARGAMES{1am_cr3at3_p0l1cy_v3rs10n_pr1v3sc}
 ```
+
+> **Note**: A player who puts `"Action":"*","Resource":"*"` in step 6 will succeed too —
+> but their effective permissions remain bounded. Any action outside the boundary silently
+> returns `AccessDenied`. This is also a teachable moment about permissions boundaries as a defense.
 
 ### Flag
 
@@ -287,12 +326,15 @@ CYBERWARGAMES{1am_cr3at3_p0l1cy_v3rs10n_pr1v3sc}
 
 ### Phase 3 — Hard Lab Module (`modules/lab-hard/`)
 
-- [ ] IAM user `ctf-hard-player` + access key
+- [ ] Permissions boundary policy `ctf-hard-player-boundary` (scoped to only hard-lab actions)
+- [ ] IAM user `ctf-hard-player` with boundary attached at creation (`permissions_boundary` argument)
+- [ ] Access key for `ctf-hard-player`
 - [ ] Managed policy `ctf-hard-restricted` (initial: only `sts:GetCallerIdentity`)
 - [ ] Inline policy on player user (contains the CreatePolicyVersion misconfiguration)
-- [ ] S3 bucket `ctf-hard-artifacts-{random}` with hint file uploaded via `aws_s3_object`
+- [ ] Attach `ctf-hard-restricted` to player user
+- [ ] S3 bucket `ctf-hard-artifacts-{random}` (private, no public access)
+- [ ] `aws_s3_object` for `hints/README.txt`
 - [ ] Secrets Manager secret `ctf/hard/flag`
-- [ ] Resource policy on Secrets Manager secret (deny all except `AdministratorAccess` or `*` — so only post-escalation access works)
 
 ### Phase 4 — Outputs & Docs
 
@@ -320,12 +362,16 @@ CYBERWARGAMES{1am_cr3at3_p0l1cy_v3rs10n_pr1v3sc}
 
 Both labs are **intentionally vulnerable**. The following misconfigurations are by design:
 
-| Lab  | Misconfiguration                                              | Real-world impact            |
-|------|---------------------------------------------------------------|------------------------------|
-| Easy | IAM role trust policy uses account root principal             | Full account takeover        |
-| Hard | `iam:CreatePolicyVersion` granted on self-managed policy      | Full account takeover        |
+| Lab  | Misconfiguration                                              | Blast radius (shared env)                   |
+|------|---------------------------------------------------------------|---------------------------------------------|
+| Easy | IAM role trust policy uses account root principal             | Scoped: role only reads `/ctf/easy/flag`    |
+| Hard | `iam:CreatePolicyVersion` granted on self-managed policy      | Scoped: permissions boundary caps all access to hard flag only |
 
-> **Warning**: Deploy only in isolated AWS accounts dedicated to this CTF. Never deploy in production accounts. Both misconfigurations allow full administrative access to any IAM entity in the account.
+**Easy lab** is naturally isolated — the assumed role has only `ssm:GetParameter` on `/ctf/easy/flag`. No further escalation is possible from it.
+
+**Hard lab** uses a **permissions boundary** (`ctf-hard-player-boundary`) as the isolation mechanism. The boundary is set at user creation and cannot be removed or modified by the player. Even a wildcard identity policy cannot exceed the boundary.
+
+> **Warning**: Deploy only in isolated AWS accounts dedicated to this CTF. Never deploy in production accounts.
 
 ---
 
