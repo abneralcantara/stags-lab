@@ -143,6 +143,24 @@ These permissions are enough to enumerate roles and identify the misconfiguratio
 CYBERWARGAMES{tr4ck_y0ur_trust_p0l1c135_c4r3fully}
 ```
 
+### Player Isolation Analysis
+
+The easy lab does **not** require a permissions boundary. The design is inherently contained:
+
+| Vector | Assessment |
+|--------|------------|
+| `ctf-easy-player` has no IAM write actions | Cannot escalate their own permissions in any way |
+| `sts:AssumeRole` scoped to specific role ARN | Cannot assume any other role in the account |
+| `ec2-monitoring-role` has no `sts:AssumeRole` | No role chaining — dead end after assuming the role |
+| Role permissions scoped to `/ctf/easy/*` in SSM | Cannot read the hard flag (stored in Secrets Manager, not SSM) |
+| `ctf-hard-player` escalating and assuming easy role | Blocked — `sts:AssumeRole` is absent from the hard lab's permissions boundary |
+
+Minor info leaks (read-only, not harmful):
+- `iam:ListRoles` is not resource-scopeable in IAM — it always lists all roles in the account. Exposes role names but no write access.
+- `ssm:DescribeParameters` is unscoped — reveals parameter names but not values. Hard flag is in Secrets Manager, not SSM, so no cross-lab value exposure.
+
+No changes required to the easy lab for player isolation.
+
 ---
 
 ## Lab 2 — Hard: "The Lazy DevOps"
