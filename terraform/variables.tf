@@ -1,13 +1,13 @@
 variable "easy_flag" {
   description = "Flag value for the easy lab (Open Sesame)"
   type        = string
-  default     = "CYBERWARGAMES{tr4ck_y0ur_trust_p0l1c135_c4r3fully}"
+  default     = "{CWG:Tr4ck_Y0ur_L1f4_C4r3fully:603b46b2644163956691c747a20485a3348f4954daf365a5bd7bef5a65e15013}"
   sensitive   = true
 }
 
 variable "hard_flag" {
   description = "Flag value for the hard lab (The Lazy DevOps)"
   type        = string
-  default     = "CYBERWARGAMES{1am_cr3at3_p0l1cy_v3rs10n_pr1v3sc}"
+  default     = "{CWG:1am_D3str0y3r_0f_P0l1c13s:ea5d7463d266068403d522f74fd40ab9373352935234e2eccb9e821a578ac998}"
   sensitive   = true
 }
