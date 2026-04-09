@@ -42,7 +42,7 @@ stags-lab/
 | AWS Region        | `sa-east-1` (São Paulo)        |
 | Max cost          | < $10/hour total               |
 | Deployment model  | Single shared environment      |
-| Flag format       | `CYBERWARGAMES{...}`           |
+| Flag format       | `{CWG:...}`           |
 | Player entry point| IAM credentials (access key + secret) |
 
 **Cost profile**: Both labs use only IAM, STS, SSM Parameter Store, S3, and Secrets Manager — all of which are either free-tier eligible or cost fractions of a cent per operation. Total estimated cost: **< $0.01/hour**.
@@ -134,13 +134,13 @@ These permissions are enough to enumerate roles and identify the misconfiguratio
      --name /ctf/easy/flag \
      --with-decryption \
      --query 'Parameter.Value'
-   → CYBERWARGAMES{tr4ck_y0ur_trust_p0l1c135_c4r3fully}
+   → {CWG:Tr4ck_Y0ur_L1f4_C4r3fully:603b46b2644163956691c747a20485a3348f4954daf365a5bd7bef5a65e15013}
 ```
 
 ### Flag
 
 ```
-CYBERWARGAMES{tr4ck_y0ur_trust_p0l1c135_c4r3fully}
+{CWG:Tr4ck_Y0ur_L1f4_C4r3fully:603b46b2644163956691c747a20485a3348f4954daf365a5bd7bef5a65e15013}
 ```
 
 ### Player Isolation Analysis
@@ -310,7 +310,7 @@ Good luck either way.
 7. aws secretsmanager get-secret-value \
      --secret-id ctf/hard/flag \
      --query 'SecretString'
-   → CYBERWARGAMES{1am_cr3at3_p0l1cy_v3rs10n_pr1v3sc}
+   → {CWG:1am_D3str0y3r_0f_P0l1c13s:ea5d7463d266068403d522f74fd40ab9373352935234e2eccb9e821a578ac998}
 ```
 
 > **Note**: A player who puts `"Action":"*","Resource":"*"` in step 6 will succeed too —
@@ -320,7 +320,7 @@ Good luck either way.
 ### Flag
 
 ```
-CYBERWARGAMES{1am_cr3at3_p0l1cy_v3rs10n_pr1v3sc}
+{CWG:1am_D3str0y3r_0f_P0l1c13s:ea5d7463d266068403d522f74fd40ab9373352935234e2eccb9e821a578ac998}
 ```
 
 ---
