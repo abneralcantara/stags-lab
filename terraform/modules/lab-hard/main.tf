@@ -8,6 +8,14 @@
 # Player isolation: A permissions boundary hard-caps the player's effective
 # permissions to only the actions needed to complete the lab, regardless of
 # what they write into their managed policy after escalation.
+#
+# Anti-enumeration changes:
+#   - iam:ListPolicies, iam:GetPolicy, iam:GetPolicyVersion,
+#     iam:ListPolicyVersions removed from inline policy and boundary —
+#     automated tools cannot map the account's policy surface.
+#   - Self-enumeration actions (GetUser, ListAttachedUserPolicies, etc.)
+#     scoped to the player's own user ARN — deny on "*" breaks tool scanners.
+#   - Extra S3 objects added as dead-end noise in the hint bucket.
 # ─────────────────────────────────────────────────────────────────────────────
 
 resource "random_id" "bucket_suffix" {
@@ -33,20 +41,22 @@ resource "aws_iam_policy" "player_boundary" {
     Version = "2012-10-17"
     Statement = [
       {
-        Sid    = "IdentityAndEnumeration"
+        Sid      = "IdentityCheck"
+        Effect   = "Allow"
+        Action   = ["sts:GetCallerIdentity"]
+        Resource = "*"
+      },
+      {
+        Sid    = "SelfEnumeration"
         Effect = "Allow"
         Action = [
-          "sts:GetCallerIdentity",
           "iam:GetUser",
           "iam:ListAttachedUserPolicies",
           "iam:ListUserPolicies",
           "iam:GetUserPolicy",
-          "iam:ListPolicies",
-          "iam:GetPolicy",
-          "iam:GetPolicyVersion",
-          "iam:ListPolicyVersions",
         ]
-        Resource = "*"
+        # Scoped to own user only — tools calling these on "*" will be denied
+        Resource = "arn:aws:iam::${var.account_id}:user/ctf-hard-player"
       },
       {
         Sid    = "PolicyVersionManagement"
@@ -142,20 +152,26 @@ resource "aws_iam_user_policy" "inline" {
     Version = "2012-10-17"
     Statement = [
       {
-        Sid    = "IdentityAndEnumeration"
+        Sid      = "IdentityCheck"
+        Effect   = "Allow"
+        Action   = ["sts:GetCallerIdentity"]
+        Resource = "*"
+      },
+      {
+        Sid    = "SelfEnumeration"
         Effect = "Allow"
         Action = [
-          "sts:GetCallerIdentity",
           "iam:GetUser",
           "iam:ListAttachedUserPolicies",
           "iam:ListUserPolicies",
           "iam:GetUserPolicy",
-          "iam:ListPolicies",
-          "iam:GetPolicy",
-          "iam:GetPolicyVersion",
-          "iam:ListPolicyVersions",
         ]
-        Resource = "*"
+        # Scoped to own user only — tools calling these on "*" will be denied.
+        # iam:ListPolicies, iam:GetPolicy, iam:GetPolicyVersion, and
+        # iam:ListPolicyVersions intentionally omitted: players do not need
+        # them to complete the challenge, and their absence prevents automated
+        # scanners from mapping the account's managed policy surface.
+        Resource = "arn:aws:iam::${var.account_id}:user/ctf-hard-player"
       },
       {
         Sid    = "SelfManagedPolicyUpdate"
@@ -232,6 +248,82 @@ resource "aws_s3_object" "hint" {
   tags = {
     Lab = "hard"
   }
+}
+
+# ── S3 noise files (dead ends) ───────────────────────────────────────────────
+#
+# Extra objects in the hint bucket that look plausible but lead nowhere.
+# Players exploring S3 must read multiple files to find the real hint.
+
+resource "aws_s3_object" "noise_buildspec" {
+  bucket       = aws_s3_bucket.artifacts.bucket
+  key          = "deploy/buildspec.yml"
+  content_type = "text/plain"
+
+  content = <<-EOT
+    version: 0.2
+
+    phases:
+      install:
+        runtime-versions:
+          python: "3.11"
+      pre_build:
+        commands:
+          - pip install -r requirements.txt
+          - aws sts get-caller-identity
+      build:
+        commands:
+          - python -m pytest tests/ --tb=short
+          - ./scripts/validate-config.sh
+      post_build:
+        commands:
+          - echo "Build phase complete"
+
+    artifacts:
+      files:
+        - "dist/**/*"
+        - "config/**/*"
+  EOT
+
+  tags = { Lab = "hard" }
+}
+
+resource "aws_s3_object" "noise_pipeline_vars" {
+  bucket       = aws_s3_bucket.artifacts.bucket
+  key          = "config/pipeline-vars.json"
+  content_type = "application/json"
+
+  content = jsonencode({
+    environment        = "production"
+    region             = "sa-east-1"
+    deploy_bucket      = "internal-artifacts-prod"
+    notification_email = "devops@example.internal"
+    max_retries        = 3
+    timeout_minutes    = 15
+  })
+
+  tags = { Lab = "hard" }
+}
+
+resource "aws_s3_object" "noise_deploy_log" {
+  bucket       = aws_s3_bucket.artifacts.bucket
+  key          = "logs/deploy-20240315.log"
+  content_type = "text/plain"
+
+  content = <<-EOT
+    [2024-03-15 14:32:01] Starting deployment pipeline v2.4.1
+    [2024-03-15 14:32:04] Authenticating ci-deploy-bot...
+    [2024-03-15 14:32:05] Identity confirmed: arn:aws:iam::ACCOUNT_ID:user/ci-deploy-bot
+    [2024-03-15 14:32:06] Validating runtime permissions...
+    [2024-03-15 14:32:07] Permission check passed
+    [2024-03-15 14:32:08] Syncing configuration to production environment
+    [2024-03-15 14:32:38] Updating service permissions...
+    [2024-03-15 14:32:41] Policy updated to v2
+    [2024-03-15 14:32:42] Verifying deployment health checks...
+    [2024-03-15 14:32:45] All checks passed — deployment complete
+  EOT
+
+  tags = { Lab = "hard" }
 }
 
 # ── Flag ──────────────────────────────────────────────────────────────────────
