@@ -211,3 +211,4 @@ terraform/.terraform/
 terraform/terraform.tfstate
 terraform/terraform.tfstate.backup
 terraform/*.tfplan
+terraform/modules/lab-hard/reset_lambda.zip

@@ -13,3 +13,8 @@ output "hint_bucket" {
   description = "S3 bucket containing the hint file"
   value       = aws_s3_bucket.artifacts.bucket
 }
+
+output "reset_lambda_name" {
+  description = "Name of the Lambda that auto-resets ctf-hard-restricted every 5 minutes"
+  value       = aws_lambda_function.reset.function_name
+}

@@ -753,7 +753,65 @@ Note:
 
 ---
 
-### 4. Using the IAM Policy Simulator
+### 4. The Auto-Reset Mechanism (Hard Lab)
+
+#### Why it exists
+
+`iam:CreatePolicyVersion` modifies **shared AWS state**. Once Player 1 escalates `ctf-hard-restricted` to v2 and sets it as default, that change persists in the account. Without a reset, every subsequent player would arrive with an already-escalated policy and could read the flag directly — the learning objective would be completely bypassed.
+
+#### How it works
+
+A Lambda function (`ctf-hard-policy-reset`) is triggered by an EventBridge rule every **5 minutes**. The function:
+
+1. Lists all versions of `ctf-hard-restricted`
+2. If only v1 exists with the original content — does nothing
+3. Otherwise:
+   - Deletes all non-default versions (the ones the player injected)
+   - Creates a fresh version with the original content and sets it as default
+   - Deletes the old (escalated) default version
+
+The reset is idempotent and handles the IAM 5-version limit gracefully.
+
+#### Observing the reset in CloudWatch Logs
+
+```bash
+# Stream the Lambda logs live
+aws logs tail /aws/lambda/ctf-hard-policy-reset --follow
+
+# See the last 10 invocations
+aws logs filter-log-events \
+  --log-group-name /aws/lambda/ctf-hard-policy-reset \
+  --limit 10 \
+  --query 'events[*].message'
+```
+
+After Player 1 escalates, you will see entries like:
+
+```
+Deleted non-default version v1
+Created fresh version with original content and set as default
+Deleted old default version v2
+```
+
+#### Policy version state over time
+
+```
+T+00:00  Player 1 arrives        → ctf-hard-restricted: [v1* (original)]
+T+02:00  Player 1 escalates      → ctf-hard-restricted: [v1,  v2* (secretsmanager:*)]
+T+03:00  Player 1 reads the flag → flag captured
+T+05:00  Lambda fires            → ctf-hard-restricted: [v3* (original)]  ← reset
+T+05:01  Player 2 arrives        → must escalate again to read the flag
+```
+
+(v3 is functionally identical to v1 — the version number increments but the content is the same.)
+
+#### What the Lambda cannot do
+
+The Lambda execution role is narrowly scoped: `iam:ListPolicyVersions`, `iam:GetPolicyVersion`, `iam:CreatePolicyVersion`, `iam:DeletePolicyVersion` — all on `ctf-hard-restricted` only. It cannot touch any other resource, read the flag, or modify the player user or boundary.
+
+---
+
+### 6. Using the IAM Policy Simulator
 
 The IAM Policy Simulator lets you test what an identity can and cannot do without actually making the call. It is invaluable for auditing.
 
@@ -788,7 +846,7 @@ The simulator respects permissions boundaries — you will see a `DENIED` result
 
 ---
 
-### 5. Detecting These Attacks in a Real Environment
+### 7. Detecting These Attacks in a Real Environment
 
 #### CloudTrail — the evidence trail
 
@@ -895,7 +953,7 @@ The `iam_policy_allows_privilege_escalation` check specifically tests for `iam:C
 
 ---
 
-### 6. Remediation — Fixing the Misconfigurations
+### 8. Remediation — Fixing the Misconfigurations
 
 #### Lab 1 fix — correct the trust policy
 
@@ -999,7 +1057,7 @@ Attach a permissions boundary to every pipeline identity that caps the maximum e
 
 ---
 
-### 7. MITRE ATT&CK Mapping
+### 9. MITRE ATT&CK Mapping
 
 Both labs map to the MITRE ATT&CK Cloud matrix:
 
@@ -1014,7 +1072,7 @@ The `iam:CreatePolicyVersion` technique is also catalogued in the [Rhino Securit
 
 ---
 
-### 8. Further Reading and Tools
+### 10. Further Reading and Tools
 
 | Resource | What it covers |
 |----------|---------------|
