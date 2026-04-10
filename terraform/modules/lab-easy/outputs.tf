@@ -8,3 +8,8 @@ output "secret_access_key" {
   value       = aws_iam_access_key.player.secret
   sensitive   = true
 }
+
+output "hint_bucket" {
+  description = "S3 bucket containing the platform notes hint file"
+  value       = aws_s3_bucket.hints.bucket
+}
